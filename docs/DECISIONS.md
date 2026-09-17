@@ -12,6 +12,10 @@
 | D-06 | Cancel locally; never call global server interruption or queue-clear APIs. | The backend may be shared. |
 | D-07 | Keep one request slot per editor until cancelled work settles or times out. | Bound client and server work. |
 | D-08 | Use only supported GIMP/PDB and introspection APIs. | The project has no custom GIMP build. |
+| D-09 | Use a non-modal floating utility window (`transient-for` GIMP main window). | Keep editor visible without blocking GIMP canvas inspection. |
+| D-10 | Support direct mouse bindings (Left=Positive, Shift+Left/Right=Negative, drag=move, Del/Right-click=delete). | Fast point workflow without mandatory tool mode switching. |
+| D-11 | Keep editor open on Apply; require explicit Close. | Enables progressive multi-part selection building. |
+| D-12 | Round coordinates to integer pixels using `math.floor(coord + 0.5)`. | Matches pixel centers and ComfyUI SAM3 integer schema. |
 
 ## Proof gates
 

@@ -3,12 +3,14 @@
 ## Status and boundaries
 
 This is the v1 implementation contract. The product behavior in
-`REQUIREMENTS.md` is fixed; GIMP and ComfyUI mechanisms are provisional until
-their proof gates pass. Python 3 and GIMP introspection bindings are candidates.
-Host Python libraries must not be assumed available inside Flatpak GIMP.
+`REQUIREMENTS.md` is fixed; UI interaction is specified in `EDITOR_UX.md`.
+The target environment is Flatpak GIMP 3.2.6 (`org.gimp.GIMP`), which provides
+network access (`shared=network;ipc;`) and Python 3 with `Gimp`, `GimpUi`, `Gtk`
+(GTK 3), `GdkPixbuf`, `cairo`, and `GLib`. Third-party Python packages cannot be
+assumed; networking uses Python standard library (`urllib.request`).
 
 ```text
-GIMP menu -> source adapter -> immutable source snapshot -> point editor
+GIMP menu -> source adapter -> immutable source snapshot -> point editor (EDITOR_UX.md)
                                       |                       |
                                preview cache          request controller
                                                               |
@@ -17,7 +19,7 @@ GIMP selection adapter <- mask validation <- ComfyUI client <-+
 
 GIMP-specific objects remain in source and selection adapters. Worker tasks may
 encode, request, and decode immutable bytes only. Source reads, GTK updates, and
-selection edits run in the supported GIMP main context.
+selection edits run in the supported GIMP main context via `GLib.idle_add()`.
 
 ## Source and preview contract
 
@@ -46,8 +48,9 @@ source_y = (pointer_y - oy) / sy
 The origin includes pan and centering. Reject clicks outside the displayed source
 instead of clamping. Use logical widget coordinates; account for device scaling
 exactly once in the toolkit layer. At request construction, convert a point once
-using the documented rounding rule. Reject converted coordinates outside the
-source extent.
+using half-up rounding: `int(math.floor(coord + 0.5))` to produce integer pixel
+coordinates `{"x": int, "y": int}`. Reject converted coordinates outside the
+source extent `[0, width - 1]` and `[0, height - 1]`.
 
 For active layer, map source to canvas as `canvas = source + layer_offset`. For
 Sample merged, source and canvas coordinates coincide. Never normalize SAM point

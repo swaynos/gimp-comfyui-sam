@@ -43,6 +43,7 @@ baseline.
 | --- | --- |
 | [Requirements](docs/REQUIREMENTS.md) | Product scope, interaction, and acceptance criteria |
 | [Architecture](docs/ARCHITECTURE.md) | Preview, coordinates, caching, and request lifecycle |
+| [Editor UI/UX](docs/EDITOR_UX.md) | Window modality, canvas interaction, controls, and status feedback |
 | [ComfyUI contract](docs/COMFYUI.md) | Workflow, payloads, API calls, and compatibility |
 | [Decisions and proof gates](docs/DECISIONS.md) | Fixed v1 choices, unverified runtime questions, and blockers |
 | [Acceptance specification](docs/ACCEPTANCE.md) | Traceable live, backend, lifecycle, and performance checks |

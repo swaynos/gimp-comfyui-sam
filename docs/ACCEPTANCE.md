@@ -15,14 +15,14 @@ GIMP or backend behavior. Use synthetic or approved fixtures only.
 | A-02 | Use an active raster layer with negative/nonzero offset and extent outside canvas. | Applied selection aligns after offset and clipping. |
 | A-03 | Use a multi-layer visible composite in Sample merged mode. | Source and selection have exact canvas dimensions and alignment. |
 | A-04 | Change pixels, size, offset, selected layer, scope, and close image while editor is open. | Points, uploads, and result invalidate; no late UI or document edit occurs. |
-| A-05 | Change document selection after generation; Apply every selection mode. | Apply uses Apply-time selection; Cancel changes nothing. |
+| A-05 | Change document selection after generation; Apply every selection mode. | Apply uses Apply-time selection, keeps editor open for successive iterations; Cancel changes nothing. |
 | A-06 | Apply each mode then undo once. | Undo restores prior selection; pixels and masks stay unchanged. |
 
 ## Editor and lifecycle
 
 | ID | Procedure | Pass condition |
 | --- | --- | --- |
-| A-07 | Add, move, delete, reset, zoom, and pan both point types on a non-square source. | Point coordinates round-trip at all tested transforms; type is not color-only. |
+| A-07 | Add (Left-click positive, Shift/Right-click negative), move (drag), delete (Del key / Right-click), reset, zoom (wheel, Fit, 1:1), pan, peek toggle (Tab), and opacity slider. | Point coordinates round-trip at all tested transforms; type is not color-only; peek and opacity work without modifying underlying mask data. |
 | A-08 | Generate, then change points, source, endpoint, and exposed inference settings. | Each change disables Apply until a matching result finishes. |
 | A-09 | Generate repeatedly during upload/inference; Cancel then Generate; force timeout and uncertain submission. | One active slot plus at most newest queued snapshot; no uncertain retry; late results never apply. |
 | A-10 | Simulate unavailable server, invalid nodes, queue error, malformed history/PNG, bad dimensions, expired result. | Points remain, error explains next action, document stays unchanged, Apply is disabled. |

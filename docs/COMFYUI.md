@@ -27,7 +27,10 @@ empty negative set. v1 rejects negative-only generation.
 
 Before upload, inspect the endpoint metadata for `LoadImage`,
 `CheckpointLoaderSimple`, `SAM3_Detect`, `MaskPreview`, their required inputs and
-outputs, and the selected checkpoint. Reject incompatibility before image upload.
+outputs, and the selected checkpoint. `SAM3_Detect` requires inputs `model`, `image`,
+`threshold` (float 0.0–1.0, default 0.5), `refine_iterations` (int 0–5, default 2),
+`individual_masks` (boolean, false), and optional `positive_coords` / `negative_coords`.
+Reject incompatibility before image upload.
 
 ## Transport
 

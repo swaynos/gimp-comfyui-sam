@@ -25,15 +25,25 @@ be confirmed before the first upload to a new endpoint.
 
 ## Editor
 
-The plugin opens a plugin-owned editor window from a GIMP menu action. Native
-docking is not a v1 claim. The editor provides:
+The plugin opens a plugin-owned, non-modal editor window from a GIMP menu action,
+configured as a utility window kept transient-for and floating above the GIMP
+main canvas. Native docking is not a v1 claim. Detailed interaction rules are
+specified in `EDITOR_UX.md`. The editor provides:
 
-- Positive and negative points with labels and distinct shapes as well as color.
-- Add, move, delete, and reset-all-points actions.
-- Zoom and pan with correct point placement at every supported scale.
+- Positive and negative points with labels, index numbers, and distinct shapes as
+  well as color (green circle for positive, red square for negative).
+- Direct mouse and keyboard bindings: Left-click adds Positive, Shift+Left-click
+  or Right-click adds Negative, dragging repositions points, and Delete key or
+  Right-click on an existing point deletes it.
+- Zoom (cursor-centered via scroll wheel, plus `Fit` and `1:1` buttons) and pan
+  (middle-click drag or Spacebar+drag) with correct point placement at every scale.
+- A returned-mask overlay with an alpha opacity slider and an instant Peek /
+  Toggle button (`Tab` key) to compare mask boundaries against source pixels.
+- Collapsible inference settings allowing configuration of endpoint URL (with
+  connection test), threshold (`0.00` – `1.00`), and refinement passes (`0` – `5`).
 - Explicit Generate, Cancel request, Apply, and Close actions.
-- A returned-mask overlay and status for no result, generating, current, stale,
-  cancelled, and failed states.
+- A status bar with a lifecycle state pill (`Ready`, `Preparing`, `Inferring`,
+  `Current`, `Stale`, `Failed`), an activity spinner, and contextual guidance hints.
 
 Point editing never queues inference. `Reset points` removes both point sets and
 invalidates the result. `Cancel request` stops local waiting, retains points,
@@ -72,7 +82,8 @@ selection change. It preserves source pixels and layer masks.
 Generation, preview, cancellation, reset, and close do not change the document
 selection. Apply is enabled only for a current, validated result, and rechecks
 the source just before editing. It combines with the selection current at Apply
-time. A stale or failed Apply changes nothing.
+time, keeping the editor window open for iterative workflows until the user
+explicitly closes the window. A stale or failed Apply changes nothing.
 
 ## Reliability, limits, and privacy
 
