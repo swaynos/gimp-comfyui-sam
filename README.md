@@ -8,12 +8,56 @@ point sets together, and bring the resulting mask back into GIMP as a selection.
 
 ## Project status
 
-This repository currently contains project documentation. It does not yet
-contain an installable plugin, a tested editor, or a release.
+The repository contains an installable GIMP 3 Python plug-in and deterministic
+tests for its coordinate transforms, request lifecycle, PNG encoding, mask
+validation, and ComfyUI HTTP contract. Live GIMP acceptance and large-image
+performance evidence are still required before a release.
 
-An earlier standalone test outside this repository retrieved a same-size SAM
-mask from ComfyUI. That establishes an initial backend proof, not a working
-GIMP integration or a large-image performance result.
+## Install and test
+
+The initial verified layout is Flatpak GIMP 3.2 on Linux:
+
+```sh
+make test
+make install
+```
+
+Restart GIMP after installation, then open **Select > ComfyUI SAM Selection**.
+
+## Backend configuration
+
+The ComfyUI backend endpoint can be configured through three methods:
+
+### 1. Local environment file (`.env`)
+For tests and local development code, create a `.env` file from the example:
+
+```sh
+cp .env.example .env
+```
+
+Edit `.env` to specify your ComfyUI server address:
+
+```env
+COMFYUI_ENDPOINT=http://127.0.0.1:8188
+```
+
+This `.env` file is automatically detected and loaded by the test suite (`make test`),
+CLI tools (`tools/backend_smoke.py`), and the plug-in.
+
+### 2. GIMP editor panel
+The backend URL can be configured directly inside GIMP in the **Select > ComfyUI SAM Selection...** window:
+- In the **Inference Settings** panel, enter your **Server URL**.
+- Click **Test Connection** to verify server connectivity and SAM model availability.
+- Click **Save URL** (or run a successful connection test) to persist the endpoint across sessions in
+  `~/.config/GIMP/3.2/plug-in-settings/gimp-comfyui-sam.json`.
+
+### 3. Environment variable
+Set the environment variable directly in your shell or launch script:
+
+```sh
+export COMFYUI_ENDPOINT="http://127.0.0.1:8188"
+```
+
 
 ## Scope
 
@@ -47,14 +91,17 @@ baseline.
 | [ComfyUI contract](docs/COMFYUI.md) | Workflow, payloads, API calls, and compatibility |
 | [Decisions and proof gates](docs/DECISIONS.md) | Fixed v1 choices, unverified runtime questions, and blockers |
 | [Acceptance specification](docs/ACCEPTANCE.md) | Traceable live, backend, lifecycle, and performance checks |
-| [Development and verification](docs/DEVELOPMENT.md) | Milestones, evidence rules, and release record |
+| [Developer guide](docs/DEVELOPMENT.md) | Architecture, codebase structure, coding constraints, and development workflow |
+| [Source support record](docs/SOURCE_SUPPORT.md) | Exact enabled and rejected source representations |
+| [Verification guide](docs/VERIFICATION.md) | Reproducible automated suites, headless smoke tests, and manual validation |
 
 ## Initial environment
 
 The initial target is GIMP 3.2.6 installed through Flatpak on Linux Mint.
-The development backend is `http://callisto:28188`, serving SAM through ComfyUI
-on an RTX 5060 Ti. The endpoint must be configurable; other environments require
+The backend endpoint is configurable (defaulting to `http://127.0.0.1:8188` or
+`COMFYUI_ENDPOINT`), serving SAM through ComfyUI. Other environments require
 their own verification.
 
-Installation and usage commands will be added when the plugin exists and those
-commands have been tested.
+The plug-in has no third-party Python dependency. It uses the Python, GI, GTK,
+GEGL, and GdkPixbuf modules bundled with the GIMP Flatpak plus the Python
+standard library for HTTP.

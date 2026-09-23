@@ -1,55 +1,121 @@
-# Development and verification
+# Developer Guide
 
-## Current status
+This guide covers the architecture, development workflow, coding constraints, and extension points for contributors working on `gimp-comfyui-sam`.
 
-The repository contains specifications only. No plugin code, executable test
-suite, installation layout, or backend proof has been imported. An earlier
-standalone same-size-mask experiment is background evidence only; it did not
-prove GIMP integration, output quality, negative points, or large-image speed.
+---
 
-Do not invent installation commands. Locate the actual plugin directory through
-GIMP preferences and verify available bindings and UI libraries inside the
-installed Flatpak runtime.
+## 1. Codebase Architecture
 
-## Milestones
+The project is structured with a strict separation between **pure-Python business logic** (runnable anywhere without GIMP) and **GIMP/GTK runtime adapters**:
 
-| Stage | Deliverable | Exit evidence |
+```text
+gimp-comfyui-sam/
+├── plug-ins/gimp-comfyui-sam/     # Main plug-in sources
+│   ├── gimp-comfyui-sam.py        # Entry point: registers GIMP procedures
+│   ├── sam_core.py                # Pure-Python: data models, transforms, request queue
+│   ├── sam_png.py                 # Pure-Python: lightweight PNG chunk encoder/decoder
+│   ├── sam_comfy.py               # Pure-Python: ComfyUI HTTP client, .env loader
+│   ├── sam_gimp.py                # GIMP adapters: pixel buffers, selection application
+│   └── sam_editor.py              # GTK UI: canvas, point overlays, settings dialogs
+├── tests/                         # Unit tests (runnable with standard Python unittest)
+│   ├── test_core.py               # Coordinates, view transforms, request lifecycle
+│   ├── test_png.py                # PNG encoding and buffer safety limits
+│   └── test_comfy.py              # ComfyUI HTTP contract, serialization, .env loading
+├── tools/                         # Headless validation harnesses and smoke tests
+│   ├── backend_smoke.py           # Live ComfyUI endpoint fixture test
+│   ├── gimp_smoke.py              # Headless GIMP pixel and selection adapter checks
+│   ├── editor_smoke.py            # Headless GTK editor window construction test
+│   ├── project_apply_probe.py     # In-memory test probe for custom XCF/image files
+│   └── procedure_apply_driver.py  # Batch procedure driver
+└── Makefile                       # Build and install automation (test, install)
+```
+
+### Module Responsibilities
+
+| File | Dependencies | Purpose |
 | --- | --- | --- |
-| 1. Runtime feasibility | Minimal procedure, plugin window, source and selection adapters | A-01 through A-06; G-01 through G-04 resolved for enabled scopes |
-| 2. Backend compatibility | Minimal owned workflow and client | A-11 through A-14; G-05 compatibility record |
-| 3. Point editor | Cached preview, coordinate transforms, point controls | A-07 and measured baseline sufficient to set G-06 budgets |
-| 4. Integrated workflow | State machine, mask preview, Apply and invalidation | A-08 through A-10 and A-15 |
-| 5. Release packaging | Installation/removal docs, diagnostics, verification record | Fresh install, full acceptance record, compatible-version and limitation list |
+| `sam_core.py` | Python stdlib | Core domain models (`Point`, `GenerationIdentity`), `ViewTransform` (pan/zoom viewport calculations), `RequestSlot` (single-flight concurrency management), and pixel validation logic. |
+| `sam_png.py` | Python stdlib (`zlib`, `struct`) | Minimal, dependency-free PNG encoder and chunk parser for high-speed mask transmission. |
+| `sam_comfy.py` | Python stdlib (`http.client`, `json`, `os`, `pathlib`) | Bounded ComfyUI HTTP client, prompt workflow generation, `.env` file loading, and endpoint normalization. |
+| `sam_gimp.py` | `gi.repository` (`Gimp`, `Gegl`, `Babl`) | Bridge between GIMP's GEGL image buffers and raw pixel bytearrays. Manages undo groups, selection channel creation, and cleanup. |
+| `sam_editor.py` | `gi.repository` (`Gtk`, `Gdk`, `cairo`, `GdkPixbuf`) | Interactive Cairo-based point canvas, view controls, modal/non-modal dialogs, and async worker threads. |
+| `gimp-comfyui-sam.py` | `gi.repository` (`Gimp`, `GLib`) | GIMP 3 `Gimp.PlugIn` implementation registering `python-fu-comfyui-sam-selection` (ImageProcedure). |
 
-Do not start a stage whose listed proof gate blocks it. A later discovery that
-invalidates a previous gate reopens the affected acceptance checks.
+---
 
-## Test design
+## 2. Core Development Constraints
 
-Keep coordinate transforms, prompt construction, request identity, state
-transitions, output validation, and selection-combination decisions isolated
-from GIMP and covered by deterministic tests. Cover zoom, pan, preview size,
-device scale, negative offsets, out-of-bounds clicks, source changes, late
-responses, cancellation, uncertain submission, deadlines, and malformed output.
+When contributing to this repository, follow these design rules:
 
-Use live GIMP and ComfyUI checks only for adapter, UI, runtime, and backend
-behavior. A valid same-size PNG is not enough: check intended selection quality,
-negative-point exclusion, polarity, alignment, and document safety separately.
+### Zero External Python Dependencies
+- **Do not add packages to requirements or install via pip.**
+- The plug-in must run entirely on the Python environment bundled inside the official GIMP Flatpak / package distribution.
+- Use only Python standard library modules (`http.client`, `json`, `struct`, `urllib`, `pathlib`, etc.) and GIMP runtime GI bindings (`Gimp`, `Gegl`, `Gtk`, `GdkPixbuf`, `cairo`).
 
-## Performance method
+### Pure-Python Testability
+- Modules `sam_core.py`, `sam_png.py`, and `sam_comfy.py` must **never import `gi` or GTK**.
+- Any feature, formula, or transform that does not directly manipulate GIMP UI widgets or GIMP image buffers belongs in `sam_core.py` or `sam_comfy.py`, where it can be tested instantly via `make test` without GIMP.
 
-Use the fixtures and measurements specified by `A-15`. Establish numeric
-interaction, source-size, decoded-mask, and memory limits after the initial
-baseline, then add them to `DECISIONS.md` and use them as stage-3 and stage-4
-exit criteria. Separate client responsiveness from snapshot, upload, queue wait,
-inference, download, decode, and Apply time. Confirm that refinements do not
-upload an unchanged source.
+### Document and Selection Safety
+- **Always wrap selection edits in GIMP undo groups** (`image.undo_group_start()` / `image.undo_group_end()`).
+- Always clean up temporary channels in a `finally` block, even if an exception is thrown.
+- Never write to or overwrite source image files on disk. Selections are applied only to the in-memory document.
 
-## Delivery record
+### Configured Safety Limits
+- Maximum source / mask dimensions: 100,000,000 pixels.
+- Maximum downloaded mask PNG: 256 MiB.
+- HTTP inactivity timeout: 15 seconds per request.
+- Overall generation job timeout: 600 seconds.
 
-Before calling a release ready, provide the completed acceptance evidence, tested
-installation and removal paths, supported GIMP/ComfyUI/node/model versions,
-configured limits, known unsupported source cases, endpoint retention behavior,
-and performance report. Keep requirements and decisions current when evidence
-changes a design choice. Leave changes uncommitted unless the user requests a
-commit.
+---
+
+## 3. Local Development Workflow
+
+### Rapid Iteration with Symlinks
+
+Instead of running `make install` after every edit, you can symlink the plug-in directory directly into GIMP's plug-in folder:
+
+```sh
+# Remove existing installed folder if present
+rm -rf ~/.config/GIMP/3.2/plug-ins/gimp-comfyui-sam
+
+# Create a symlink pointing to your repository checkout
+ln -s "$(pwd)/plug-ins/gimp-comfyui-sam" ~/.config/GIMP/3.2/plug-ins/gimp-comfyui-sam
+```
+
+With a symlink in place, any edits you make in `plug-ins/gimp-comfyui-sam/` take effect immediately the next time you launch GIMP or restart the plug-in procedure.
+
+### Testing Workflow
+
+Always run the fast test suite before committing changes:
+
+```sh
+# 1. Deterministic unit tests (< 1s)
+make test
+
+# 2. Syntax check
+python3 -m py_compile plug-ins/gimp-comfyui-sam/*.py tools/*.py tests/*.py
+
+# 3. Headless GIMP smoke tests (via Flatpak)
+flatpak run org.gimp.GIMP -i --batch-interpreter python-fu-eval -b '
+import sys; sys.path.insert(0, "tools")
+import gimp_smoke; gimp_smoke.main()
+import editor_smoke; editor_smoke.main()
+' --quit
+```
+
+---
+
+## 4. Extending the Plug-in
+
+### Adding or Modifying ComfyUI Workflows
+- The workflow template is defined in `sam_comfy.py` (`build_workflow()`).
+- Output nodes must feed into a `MaskPreview` node producing a valid PNG mask matching the source dimensions.
+- If new parameters are introduced (e.g. model selection, box prompts), serialize them explicitly into the workflow dictionary and add corresponding tests in `tests/test_comfy.py`.
+
+### Adding UI Controls
+- All UI elements are defined in `sam_editor.py`.
+- Canvas interactions (clicks, drags, overlays) belong in `PointCanvas`.
+- Settings inputs belong in the collapsible `Inference Settings` expander.
+- Persisted settings are stored in JSON format via `load_settings()` / `save_settings()` in `sam_gimp.py`. Ensure any new setting includes a sensible default.
+
